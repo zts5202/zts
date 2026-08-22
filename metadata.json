@@ -1,0 +1,6 @@
+{
+  "name": "调质查询",
+  "description": "专为热处理车间行车操作工设计的吊具和孔位配置快速查询工具，离线可用，防错设计。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
