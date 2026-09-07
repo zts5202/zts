@@ -126,51 +126,52 @@ fun ResetConfirmDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF0F172A))
-                .border(1.5.dp, GlassTheme.RoseGlow.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                .padding(20.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0xFF1C1C1E))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
+                .padding(22.dp)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
                     Icons.Default.Warning,
                     contentDescription = null,
                     tint = GlassTheme.RoseGlow,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(32.dp)
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "确认恢复出厂设置？",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = GlassTheme.TextWhite
+                    color = Color.White
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "这将清除所有自定义修改的孔位、叠放个数及公差尺寸，恢复为标准 43 种 OP40 辗环工序卡数据。",
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = GlassTheme.TextMuted,
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedButton(
+                    Button(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f).height(44.dp),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2C2C2E))
                     ) {
-                        Text("取消", color = GlassTheme.TextWhite)
+                        Text("取消", color = Color.White)
                     }
                     Button(
                         onClick = onConfirm,
                         modifier = Modifier.weight(1f).height(44.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBE123C))
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF453A))
                     ) {
-                        Text("确认重置", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("恢复出厂", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }

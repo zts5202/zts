@@ -454,6 +454,13 @@ fun FlipGlassDetailDialog(
                         }
                     }
 
+                    // 标准调质工艺动效曲线 (版本 F 规范)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    QuenchingTemperingCurveCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        isCompact = true
+                    )
+
                     // OP40 工序卡辅助参数 (物料编码 / 精车尺寸 / 热态尺寸)
                     if (config.materialCode.isNotBlank() || config.machinedSize.isNotBlank() || config.hotSize.isNotBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))

@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -40,6 +41,7 @@ import com.example.ui.theme.GlassTheme
 fun EditConfigDialog(
     initialConfig: RingConfig? = null,
     isNew: Boolean = false,
+    initialShowAiVision: Boolean = true,
     onDismiss: () -> Unit,
     onSave: (RingConfig) -> Unit,
     onRestoreDefault: (() -> Unit)? = null,
@@ -155,62 +157,160 @@ fun EditConfigDialog(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // AI 智能图纸识别与力学匹配卡片
-                    AiRecognitionSection(
-                        currentIdNominal = idNominal.toIntOrNull(),
-                        currentWeightStr = weight,
-                        currentHeightNominal = heightNominal.toIntOrNull(),
-                        onApplyExtracted = { info ->
-                            val stdModel = AiVisionManager.deriveStandardModelName(info.model, info.fullProductName, info.materialCode)
-                            if (stdModel.isNotBlank()) model = stdModel
-                            if (info.material.isNotBlank()) material = info.material
-                            if (info.odNominal > 0) {
-                                odNominal = info.odNominal.toString()
-                                odTolerance = info.odTolerance.toString()
-                            }
-                            if (info.idNominal > 0) {
-                                idNominal = info.idNominal.toString()
-                                idTolerance = info.idTolerance.toString()
-                            }
-                            if (info.heightNominal > 0) {
-                                heightNominal = info.heightNominal.toString()
-                                heightTolerance = info.heightTolerance.toString()
-                            }
-                            if (info.weight.isNotBlank()) weight = info.weight
-                            if (info.materialCode.isNotBlank()) materialCode = info.materialCode
-                            if (info.fullProductName.isNotBlank()) fullProductName = info.fullProductName
-                            if (info.machinedSize.isNotBlank()) machinedSize = info.machinedSize
-                            if (info.hotSize.isNotBlank()) hotSize = info.hotSize
-                            if (info.billetInfo.isNotBlank()) billetInfo = info.billetInfo
-                            if (info.notes.isNotBlank() && info.notes != "-") notes = info.notes
+                    // 模式切换器：实图AI识别 与 手工直接输入
+                    var activeInputMode by remember { mutableStateOf(if (initialShowAiVision) "AI" else "MANUAL") }
 
-                            // 自动应用 AI 匹配推荐的吊具、孔位和叠放个数
-                            val rec = info.recommendation ?: com.example.model.HangerRuleEngine.recommend(
-                                info.idNominal,
-                                com.example.model.HangerRuleEngine.extractWeightNumber(info.weight),
-                                info.heightNominal
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF141720))
+                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                            .padding(3.dp)
+                    ) {
+                        val aiBackgroundModifier = if (activeInputMode == "AI") {
+                            Modifier.background(
+                                Brush.linearGradient(
+                                    listOf(GlassTheme.IosBlue.copy(alpha = 0.35f), Color(0xFF1F2937))
+                                )
                             )
-                            hanger = rec.hanger
-                            holePosition = rec.holePosition
-                            quantity = rec.quantity
-                        },
-                        onQuickApplyRecommendation = { rec ->
-                            hanger = rec.hanger
-                            holePosition = rec.holePosition
-                            quantity = rec.quantity
-                        },
-                        onBatchImport = { configs ->
-                            if (onBatchSave != null) {
-                                onBatchSave(configs)
-                            } else {
-                                ConfigStorageManager.saveBatchConfigs(context, configs)
-                                Toast.makeText(context, "已成功批量入库 ${configs.size} 款产品规格！", Toast.LENGTH_SHORT).show()
-                                onDismiss()
+                        } else {
+                            Modifier.background(Color.Transparent)
+                        }
+
+                        val manualBackgroundModifier = if (activeInputMode == "MANUAL") {
+                            Modifier.background(
+                                Brush.linearGradient(
+                                    listOf(GlassTheme.IosGreen.copy(alpha = 0.35f), Color(0xFF1F2937))
+                                )
+                            )
+                        } else {
+                            Modifier.background(Color.Transparent)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .then(aiBackgroundModifier)
+                                .border(
+                                    width = if (activeInputMode == "AI") 1.dp else 0.dp,
+                                    color = if (activeInputMode == "AI") GlassTheme.IosBlue.copy(alpha = 0.5f) else Color.Transparent,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .clickable { activeInputMode = "AI" }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = if (activeInputMode == "AI") GlassTheme.IosBlue else GlassTheme.TextMuted,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "实图/图纸识别",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (activeInputMode == "AI") FontWeight.Bold else FontWeight.Medium,
+                                    color = if (activeInputMode == "AI") Color.White else GlassTheme.TextMuted
+                                )
                             }
                         }
-                    )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .then(manualBackgroundModifier)
+                                .border(
+                                    width = if (activeInputMode == "MANUAL") 1.dp else 0.dp,
+                                    color = if (activeInputMode == "MANUAL") GlassTheme.IosGreen.copy(alpha = 0.5f) else Color.Transparent,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .clickable { activeInputMode = "MANUAL" }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = if (activeInputMode == "MANUAL") GlassTheme.IosGreen else GlassTheme.TextMuted,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "手动自主录入",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (activeInputMode == "MANUAL") FontWeight.Bold else FontWeight.Medium,
+                                    color = if (activeInputMode == "MANUAL") Color.White else GlassTheme.TextMuted
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // AI 智能图纸识别与力学匹配卡片 (可随时切换展开)
+                    if (activeInputMode == "AI") {
+                        AiRecognitionSection(
+                            currentIdNominal = idNominal.toIntOrNull(),
+                            currentWeightStr = weight,
+                            currentHeightNominal = heightNominal.toIntOrNull(),
+                            onApplyExtracted = { info ->
+                                val stdModel = AiVisionManager.deriveStandardModelName(info.model, info.fullProductName, info.materialCode)
+                                if (stdModel.isNotBlank()) model = stdModel
+                                if (info.material.isNotBlank()) material = info.material
+                                if (info.odNominal > 0) {
+                                    odNominal = info.odNominal.toString()
+                                    odTolerance = info.odTolerance.toString()
+                                }
+                                if (info.idNominal > 0) {
+                                    idNominal = info.idNominal.toString()
+                                    idTolerance = info.idTolerance.toString()
+                                }
+                                if (info.heightNominal > 0) {
+                                    heightNominal = info.heightNominal.toString()
+                                    heightTolerance = info.heightTolerance.toString()
+                                }
+                                if (info.weight.isNotBlank()) weight = info.weight
+                                if (info.materialCode.isNotBlank()) materialCode = info.materialCode
+                                if (info.fullProductName.isNotBlank()) fullProductName = info.fullProductName
+                                if (info.machinedSize.isNotBlank()) machinedSize = info.machinedSize
+                                if (info.hotSize.isNotBlank()) hotSize = info.hotSize
+                                if (info.billetInfo.isNotBlank()) billetInfo = info.billetInfo
+                                if (info.notes.isNotBlank() && info.notes != "-") notes = info.notes
+
+                                // 自动应用 AI 匹配推荐的吊具、孔位和叠放个数
+                                val rec = info.recommendation ?: com.example.model.HangerRuleEngine.recommend(
+                                    info.idNominal,
+                                    com.example.model.HangerRuleEngine.extractWeightNumber(info.weight),
+                                    info.heightNominal
+                                )
+                                hanger = rec.hanger
+                                holePosition = rec.holePosition
+                                quantity = rec.quantity
+                            },
+                            onQuickApplyRecommendation = { rec ->
+                                hanger = rec.hanger
+                                holePosition = rec.holePosition
+                                quantity = rec.quantity
+                            },
+                            onBatchImport = { configs ->
+                                if (onBatchSave != null) {
+                                    onBatchSave(configs)
+                                } else {
+                                    ConfigStorageManager.saveBatchConfigs(context, configs)
+                                    Toast.makeText(context, "已成功批量入库 ${configs.size} 款产品规格！", Toast.LENGTH_SHORT).show()
+                                    onDismiss()
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
 
                     // 1. 基本信息
                     EditSectionHeader(title = "1. 基本规格与材质")
