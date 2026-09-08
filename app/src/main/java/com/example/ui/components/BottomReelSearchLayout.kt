@@ -24,10 +24,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -59,7 +61,9 @@ fun BottomReelSearchLayout(
     modifier: Modifier = Modifier
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     var selectedReelIndex by remember { mutableStateOf(0) }
+    var isSearchFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchResults) {
         selectedReelIndex = 0
@@ -68,6 +72,13 @@ fun BottomReelSearchLayout(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
             .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.navigationBars)
             .imePadding() // 紧跟输入法，保持在键盘正上方
@@ -168,17 +179,18 @@ fun BottomReelSearchLayout(
             }
         }
 
-        // ==================== 2. 中部核心空白区：炫酷调质工艺曲线 SVG/Canvas 动效面板 ====================
-        // 当未搜索或仅空闲展示时，完美利用屏幕中央宽敞的空白位置，展示工业级动态调质曲线与实时遥测
+        // ==================== 2. 中部核心区：炫酷调质工艺曲线 SVG/Canvas 动效面板 ====================
+        // 当未搜索且搜索框未获得焦点（输入法未弹出）时展示
+        // 放置在顶部操作栏下方、底部搜索框上方的空间内，并在超小屏幕时自适应，绝不与搜索框或状态栏相撞
         AnimatedVisibility(
-            visible = searchQuery.isEmpty(),
-            enter = fadeIn(tween(250)),
-            exit = fadeOut(tween(150)),
+            visible = searchQuery.isEmpty() && !isSearchFocused,
+            enter = fadeIn(tween(350, easing = FastOutSlowInEasing)),
+            exit = fadeOut(tween(180, easing = FastOutSlowInEasing)),
             modifier = Modifier
                 .align(Alignment.Center)
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp)
-                .offset(y = (-28).dp) // 略微往上偏一点，与底部搜索框保持舒适负空间
+                .padding(horizontal = 16.dp)
+                .padding(top = 56.dp, bottom = 78.dp) // 严格避开顶部按钮(56dp)与底部搜索框(78dp)
         ) {
             QuenchingTemperingCurveCard(
                 modifier = Modifier.fillMaxWidth()
@@ -196,8 +208,8 @@ fun BottomReelSearchLayout(
             // 当搜索框有输入且有结果时，在搜索框上方展示紧凑的 Ramotion 3D 卷轴选择器
             AnimatedVisibility(
                 visible = searchQuery.isNotEmpty(),
-                enter = fadeIn(tween(200)) + expandVertically(tween(250)),
-                exit = fadeOut(tween(150)) + shrinkVertically(tween(200))
+                enter = fadeIn(tween(350, easing = FastOutSlowInEasing)) + expandVertically(tween(350, easing = FastOutSlowInEasing)),
+                exit = fadeOut(tween(250, easing = FastOutSlowInEasing)) + shrinkVertically(tween(250, easing = FastOutSlowInEasing))
             ) {
                 Column(
                     modifier = Modifier
@@ -301,7 +313,10 @@ fun BottomReelSearchLayout(
                         onValueChange = onSearchChange,
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight(),
+                            .fillMaxHeight()
+                            .onFocusChanged { focusState ->
+                                isSearchFocused = focusState.isFocused
+                            },
                         textStyle = TextStyle(
                             color = Color.White,
                             fontSize = 17.sp,
@@ -316,6 +331,7 @@ fun BottomReelSearchLayout(
                         ),
                         keyboardActions = KeyboardActions(
                             onSearch = {
+                                focusManager.clearFocus()
                                 keyboardController?.hide()
                                 onSearchSubmit()
                             }
@@ -340,7 +356,11 @@ fun BottomReelSearchLayout(
 
                     if (searchQuery.isNotEmpty()) {
                         IconButton(
-                            onClick = { onSearchChange("") },
+                            onClick = {
+                                onSearchChange("")
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            },
                             modifier = Modifier.size(30.dp)
                         ) {
                             Icon(

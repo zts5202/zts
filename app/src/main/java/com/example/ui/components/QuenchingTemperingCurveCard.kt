@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -58,10 +59,10 @@ data class QuenchingTemperingTelemetry(
 /**
  * 炫酷交互式调质工艺曲线 SVG/Canvas 动态仪表盘
  *
- * 核心交互升级（完美满足用户需求）：
- * 1. 【点击/拖动定位】：点击画布任意位置或直接拖拽，脉冲光斑直接定格在此处，实时遥测显示该位置的真实工艺温度与保温时间！
- * 2. 【暂停 / 自动巡检双模式】：点击中央光斑或控制按钮可暂停/继续自动巡检（Auto Scan）；
- * 3. 【高精度横向工艺滑块 (Time Slider)】：卡片内置横向工艺滑尺，随手指滑动精确控制时间进度，实时锁定质检工序卡（版本F）上的对应数据！
+ * 动画与柔和度大幅升级：
+ * 1. 【光效巡航降速 + 柔和阻尼】：巡航速度从过快的 7 秒大幅降速至 22 秒，宛如精密工业温控仪器慢速巡航，平滑优雅；
+ * 2. 【文字说明柔和交叉淡入淡出 (Crossfade)】：同一位置文字切换不再生硬突兀，采用高阶透明度淡入淡出过渡 (fadeIn + fadeOut)，无缝融合；
+ * 3. 【点击/滑动即刻定格】：点击或横向拖动滑块直接锁定当前工艺参数，可随时切换回自动巡航。
  */
 @Composable
 fun QuenchingTemperingCurveCard(
@@ -75,18 +76,19 @@ fun QuenchingTemperingCurveCard(
     var isManualMode by remember { mutableStateOf(false) }
 
     // 工艺时间进度驱动 (0f ~ 1f)
-    val progressAnimatable = remember { Animatable(0.28f) }
+    val progressAnimatable = remember { Animatable(0.25f) }
 
-    // 自动巡航协程循环：在非手动模式下以 7000ms 循环平滑前进
+    // 自动巡航协程循环：大幅放慢巡检速度至 22000ms (22秒一圈)，消除眩目感与突兀感
     LaunchedEffect(isManualMode) {
         if (!isManualMode) {
             while (isActive) {
                 val current = progressAnimatable.value
-                val remainingTime = ((1f - current) * 7000).toInt().coerceAtLeast(200)
+                val remainingTime = ((1f - current) * 22000).toInt().coerceAtLeast(300)
                 progressAnimatable.animateTo(
                     targetValue = 1f,
                     animationSpec = tween(durationMillis = remainingTime, easing = LinearEasing)
                 )
+                // 平滑重置回起点
                 progressAnimatable.snapTo(0f)
             }
         }
@@ -94,13 +96,13 @@ fun QuenchingTemperingCurveCard(
 
     val currentProgress = progressAnimatable.value
 
-    // 呼吸辉光脉冲动画
+    // 极度柔和的呼吸辉光脉冲动画 (从 1800ms 放缓至 3200ms)
     val infiniteTransition = rememberInfiniteTransition(label = "heatTreatmentGlow")
     val glowPulse by infiniteTransition.animateFloat(
-        initialValue = 0.45f,
-        targetValue = 1.0f,
+        initialValue = 0.5f,
+        targetValue = 0.95f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 3200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "glowPulse"
@@ -110,6 +112,13 @@ fun QuenchingTemperingCurveCard(
     val telemetry = remember(currentProgress) {
         deriveTelemetry(currentProgress)
     }
+
+    // 顶部边框霓虹色彩随阶段平滑过渡
+    val animatedAccentColor by animateColorAsState(
+        targetValue = telemetry.accentColor,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "animatedAccentColor"
+    )
 
     Box(
         modifier = modifier
@@ -127,8 +136,8 @@ fun QuenchingTemperingCurveCard(
                 1.2.dp,
                 Brush.horizontalGradient(
                     listOf(
-                        Color.White.copy(alpha = 0.16f),
-                        telemetry.accentColor.copy(alpha = 0.55f),
+                        Color.White.copy(alpha = 0.14f),
+                        animatedAccentColor.copy(alpha = 0.55f),
                         GlassTheme.CyanGlow.copy(alpha = 0.35f),
                         Color.White.copy(alpha = 0.10f)
                     )
@@ -149,7 +158,7 @@ fun QuenchingTemperingCurveCard(
                         modifier = Modifier
                             .size(10.dp)
                             .clip(CircleShape)
-                            .background(telemetry.accentColor)
+                            .background(animatedAccentColor)
                     )
                     Spacer(modifier = Modifier.width(7.dp))
                     Text(
@@ -185,7 +194,7 @@ fun QuenchingTemperingCurveCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isManualMode) "已定格 (点此巡航)" else "巡航中 (点此定格)",
+                            text = if (isManualMode) "已定格 (点此巡航)" else "慢速巡航中 (点此定格)",
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
@@ -195,50 +204,70 @@ fun QuenchingTemperingCurveCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // ==================== 2. 当前定格/巡检位置的工艺数据实时看板 ====================
-            Row(
+            // ==================== 2. 当前定格/巡检位置的工艺数据实时看板 (柔和交叉淡入淡出) ====================
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .height(66.dp)
+                    .clip(RoundedCornerShape(14.dp))
                     .background(Color(0xFF10141D).copy(alpha = 0.75f))
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = telemetry.stageName,
-                        fontSize = 12.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = telemetry.stageSubDesc,
-                        fontSize = 10.5.sp,
-                        color = GlassTheme.TextMuted,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
+                // 使用 Crossfade 实现同一位置内容淡入淡出，优雅消除突兀跳变
+                Crossfade(
+                    targetState = telemetry,
+                    animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing),
+                    label = "telemetryCrossfade"
+                ) { targetTelemetry ->
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = targetTelemetry.stageName,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = targetTelemetry.stageSubDesc,
+                                fontSize = 10.5.sp,
+                                color = GlassTheme.TextMuted,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
 
-                // 核心温度与时间大指标
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = telemetry.tempDisplay,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Black,
-                            fontFamily = FontFamily.Monospace,
-                            color = telemetry.accentColor
-                        )
-                        Text(
-                            text = telemetry.timeDisplay,
-                            fontSize = 10.5.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = GlassTheme.CyanGlow
-                        )
+                        // 核心温度与时间大指标
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = targetTelemetry.tempDisplay,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = targetTelemetry.accentColor
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = targetTelemetry.timeDisplay,
+                                    fontSize = 10.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = GlassTheme.CyanGlow
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -377,9 +406,9 @@ fun QuenchingTemperingCurveCard(
                         path = fillPath,
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                GlassTheme.IosOrange.copy(alpha = 0.25f * glowPulse),
-                                GlassTheme.IosBlue.copy(alpha = 0.15f),
-                                GlassTheme.IosIndigo.copy(alpha = 0.05f),
+                                GlassTheme.IosOrange.copy(alpha = 0.22f * glowPulse),
+                                GlassTheme.IosBlue.copy(alpha = 0.12f),
+                                GlassTheme.IosIndigo.copy(alpha = 0.04f),
                                 Color.Transparent
                             ),
                             startY = yQuench,
@@ -408,7 +437,7 @@ fun QuenchingTemperingCurveCard(
                                 GlassTheme.IosBlue.copy(alpha = 0.45f)
                             )
                         ),
-                        style = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                        style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                     )
                     drawPath(
                         path = curvePath,
@@ -433,32 +462,32 @@ fun QuenchingTemperingCurveCard(
                         yStart = paddingTop + chartH * 0.75f, yBottom = yBottom
                     )
 
-                    // 激光定位线
+                    // 激光定位线（更柔和的光晕过渡）
                     drawLine(
                         brush = Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, telemetry.accentColor.copy(alpha = 0.85f), Color.Transparent),
+                            colors = listOf(Color.Transparent, animatedAccentColor.copy(alpha = 0.75f), Color.Transparent),
                             startY = paddingTop,
                             endY = yBottom
                         ),
                         start = Offset(currentScanX, paddingTop),
                         end = Offset(currentScanX, yBottom),
-                        strokeWidth = if (isManualMode) 2.dp.toPx() else 1.5.dp.toPx()
+                        strokeWidth = if (isManualMode) 2.dp.toPx() else 1.2.dp.toPx()
                     )
 
-                    // 脉冲光斑核心（外环呼吸 + 核心白光球）
+                    // 脉冲光斑核心（柔和呼吸环 + 核心光点）
                     drawCircle(
-                        color = telemetry.accentColor.copy(alpha = 0.35f * glowPulse),
-                        radius = (if (isManualMode) 15.dp else 12.dp).toPx(),
+                        color = animatedAccentColor.copy(alpha = 0.28f * glowPulse),
+                        radius = (if (isManualMode) 14.dp else 11.dp).toPx(),
                         center = Offset(currentScanX, currentScanY)
                     )
                     drawCircle(
-                        color = telemetry.accentColor,
-                        radius = 6.dp.toPx(),
+                        color = animatedAccentColor,
+                        radius = 5.dp.toPx(),
                         center = Offset(currentScanX, currentScanY)
                     )
                     drawCircle(
                         color = Color.White,
-                        radius = 2.8.dp.toPx(),
+                        radius = 2.5.dp.toPx(),
                         center = Offset(currentScanX, currentScanY)
                     )
 
@@ -541,12 +570,12 @@ fun QuenchingTemperingCurveCard(
                         )
                     }
 
-                    // 进度百分比与阶段标识
+                    // 进度百分比与阶段标识（平滑过渡颜色）
                     Text(
                         text = "${(currentProgress * 100).toInt()}% · ${telemetry.targetEquip}",
                         fontSize = 10.5.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = telemetry.accentColor,
+                        color = animatedAccentColor,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -563,8 +592,8 @@ fun QuenchingTemperingCurveCard(
                         .fillMaxWidth()
                         .height(30.dp),
                     colors = SliderDefaults.colors(
-                        thumbColor = telemetry.accentColor,
-                        activeTrackColor = telemetry.accentColor,
+                        thumbColor = animatedAccentColor,
+                        activeTrackColor = animatedAccentColor,
                         inactiveTrackColor = Color.White.copy(alpha = 0.12f)
                     )
                 )
@@ -579,20 +608,30 @@ fun QuenchingTemperingCurveCard(
             ) {
                 // 淬火指标
                 val isQuenchingActive = currentProgress in 0.18f..0.54f
+                val animatedQuenchBg by animateColorAsState(
+                    targetValue = if (isQuenchingActive) GlassTheme.IosOrange.copy(alpha = 0.16f) else Color(0xFF1B1E28).copy(alpha = 0.7f),
+                    animationSpec = tween(400),
+                    label = "animatedQuenchBg"
+                )
+                val animatedQuenchBorder by animateColorAsState(
+                    targetValue = if (isQuenchingActive) GlassTheme.IosOrange else GlassTheme.IosOrange.copy(alpha = 0.35f),
+                    animationSpec = tween(400),
+                    label = "animatedQuenchBorder"
+                )
+
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (isQuenchingActive) GlassTheme.IosOrange.copy(alpha = 0.15f) else Color(0xFF1B1E28).copy(alpha = 0.7f))
-                        .border(
-                            1.dp,
-                            if (isQuenchingActive) GlassTheme.IosOrange else GlassTheme.IosOrange.copy(alpha = 0.35f),
-                            RoundedCornerShape(12.dp)
-                        )
+                        .background(animatedQuenchBg)
+                        .border(1.dp, animatedQuenchBorder, RoundedCornerShape(12.dp))
                         .clickable {
                             isManualMode = true
                             coroutineScope.launch {
-                                progressAnimatable.animateTo(0.28f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                                progressAnimatable.animateTo(
+                                    0.28f,
+                                    spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
+                                )
                             }
                         }
                         .padding(horizontal = 10.dp, vertical = 7.dp)
@@ -638,20 +677,30 @@ fun QuenchingTemperingCurveCard(
 
                 // 回火指标
                 val isTemperingActive = currentProgress in 0.54f..0.88f
+                val animatedTemperBg by animateColorAsState(
+                    targetValue = if (isTemperingActive) GlassTheme.IosBlue.copy(alpha = 0.16f) else Color(0xFF1B1E28).copy(alpha = 0.7f),
+                    animationSpec = tween(400),
+                    label = "animatedTemperBg"
+                )
+                val animatedTemperBorder by animateColorAsState(
+                    targetValue = if (isTemperingActive) GlassTheme.IosBlue else GlassTheme.IosBlue.copy(alpha = 0.35f),
+                    animationSpec = tween(400),
+                    label = "animatedTemperBorder"
+                )
+
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (isTemperingActive) GlassTheme.IosBlue.copy(alpha = 0.15f) else Color(0xFF1B1E28).copy(alpha = 0.7f))
-                        .border(
-                            1.dp,
-                            if (isTemperingActive) GlassTheme.IosBlue else GlassTheme.IosBlue.copy(alpha = 0.35f),
-                            RoundedCornerShape(12.dp)
-                        )
+                        .background(animatedTemperBg)
+                        .border(1.dp, animatedTemperBorder, RoundedCornerShape(12.dp))
                         .clickable {
                             isManualMode = true
                             coroutineScope.launch {
-                                progressAnimatable.animateTo(0.72f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+                                progressAnimatable.animateTo(
+                                    0.72f,
+                                    spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
+                                )
                             }
                         }
                         .padding(horizontal = 10.dp, vertical = 7.dp)

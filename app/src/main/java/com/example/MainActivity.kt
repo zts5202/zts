@@ -134,7 +134,8 @@ fun HangerApp() {
             }
     ) {
         Scaffold(
-            containerColor = Color.Transparent
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { paddingValues ->
             Box(
                 modifier = Modifier
