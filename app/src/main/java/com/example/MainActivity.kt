@@ -63,14 +63,29 @@ import com.example.ui.theme.GlassTheme
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
+    private var globalCrashMessage by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            android.util.Log.e("SanyCrash", "Uncaught exception", throwable)
+            globalCrashMessage = throwable.stackTraceToString()
+        }
+
+        try {
+            enableEdgeToEdge()
+        } catch (e: Throwable) {
+            android.util.Log.w("SanyCrash", "enableEdgeToEdge warning", e)
+        }
+
         setContent {
             var crashError by remember { mutableStateOf<String?>(null) }
+            val currentError = globalCrashMessage ?: crashError
 
             MyApplicationTheme {
-                if (crashError != null) {
+                if (currentError != null) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -91,11 +106,12 @@ class MainActivity : ComponentActivity() {
                         ) {
                             Text("⚠️ 程序启动捕获异常", color = Color(0xFFFF5252), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(12.dp))
-                            Text(crashError ?: "", color = Color.White, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                            Text(currentError, color = Color.White, fontSize = 12.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                             Spacer(Modifier.height(20.dp))
                             Button(
                                 onClick = {
                                     crashError = null
+                                    globalCrashMessage = null
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                             ) {
