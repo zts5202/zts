@@ -49,6 +49,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.example.data.ConfigStorageManager
 import com.example.model.RingConfig
 import com.example.ui.components.AddChoiceBottomSheet
@@ -65,8 +67,51 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            var crashError by remember { mutableStateOf<String?>(null) }
+
             MyApplicationTheme {
-                HangerApp()
+                if (crashError != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFF0F1115))
+                            .padding(24.dp)
+                            .systemBarsPadding(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFF1E222B))
+                                .border(1.dp, Color.Red.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                                .padding(20.dp)
+                                .verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("⚠️ 程序启动捕获异常", color = Color(0xFFFF5252), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(12.dp))
+                            Text(crashError ?: "", color = Color.White, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                            Spacer(Modifier.height(20.dp))
+                            Button(
+                                onClick = {
+                                    crashError = null
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                            ) {
+                                Text("重试启动")
+                            }
+                        }
+                    }
+                } else {
+                    androidx.compose.runtime.CompositionLocalProvider {
+                        try {
+                            HangerApp()
+                        } catch (t: Throwable) {
+                            crashError = t.stackTraceToString()
+                        }
+                    }
+                }
             }
         }
     }
