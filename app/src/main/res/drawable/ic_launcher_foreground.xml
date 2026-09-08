@@ -1,9 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="66dp"
-        android:height="66dp"
-        android:drawable="@drawable/gpt_hook_ring_icon_1787411263847"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 外层圆环 (吊具主环) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#0284C7"
+        android:strokeWidth="6"
+        android:pathData="M 54,22 A 32,32 0 1,1 53.99,22 Z" />
+    <!-- 内层耐磨衬圈 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="3.5"
+        android:pathData="M 54,32 A 22,22 0 1,1 53.99,32 Z" />
+    <!-- 核心淬火工艺晶体标记 -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M 54,44 L 62,54 L 54,64 L 46,54 Z" />
+    <!-- 调质激光检测十字标线 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeAlpha="0.75"
+        android:pathData="M 54,12 L 54,20 M 54,88 L 54,96 M 12,54 L 20,54 M 88,54 L 96,54" />
+</vector>
+
 

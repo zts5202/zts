@@ -120,13 +120,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 } else {
-                    androidx.compose.runtime.CompositionLocalProvider {
-                        try {
-                            HangerApp()
-                        } catch (t: Throwable) {
-                            crashError = t.stackTraceToString()
-                        }
-                    }
+                    HangerApp()
                 }
             }
         }
